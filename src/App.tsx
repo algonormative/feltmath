@@ -65,7 +65,7 @@ export default function App() {
         <span className="appbar__tag">Feltmath</span>
         <a
           className="appbar__github"
-          href="https://github.com/chronick/feltmath"
+          href="https://github.com/algonormative/feltmath"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="View Feltmath on GitHub (opens in a new tab)"

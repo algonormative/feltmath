@@ -38,7 +38,7 @@ function serviceWorkerManifest(): Plugin {
   }
 }
 
-// base './' keeps the build relocatable (works at chronick.github.io/blackjack-trainer)
+// base './' keeps the build relocatable (works at algonormative.github.io/blackjack-trainer)
 export default defineConfig({
   plugins: [react(), serviceWorkerManifest()],
   base: './',
