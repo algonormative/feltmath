@@ -1,0 +1,774 @@
+/* ==========================================================================
+   Klondike — one felt, seven columns, four foundations, a stock and a waste.
+   Tokens from index.css; own class names so solitaire loads on its own.
+   ========================================================================== */
+
+.kl {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+/* ---- game bar -------------------------------------------------------- */
+
+.kl__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--hair-2);
+}
+
+.kl__score {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.kl__score strong {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--gold-soft);
+  letter-spacing: 0.01em;
+}
+
+.kl__score small {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+  margin-left: 1px;
+}
+
+.kl__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.kl__line {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.kl__metaline {
+  font-size: 10px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kl__metaline em {
+  font-style: normal;
+  color: var(--warn);
+}
+
+.kl__tools {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ---- stats strip ----------------------------------------------------- */
+
+.klstats {
+  border-bottom: 1px solid var(--hair-2);
+  background: rgba(4, 12, 9, 0.45);
+}
+
+.klstats__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 3px 12px;
+  color: var(--text-2);
+  text-align: left;
+}
+
+.klstats__peek {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.klstats__peek--dim {
+  margin-left: auto;
+  color: var(--text-3);
+}
+
+.klstats__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px 12px;
+  margin: 0;
+  padding: 4px 12px 10px;
+}
+
+.klstats__cell dd {
+  margin: 1px 0 0;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+@media (min-width: 700px) {
+  .klstats__grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* ---- stage ------------------------------------------------------------ */
+
+.kl__stage {
+  /* pinned: the stats strip above can be display:none on short screens */
+  grid-row: 3;
+  min-height: 0;
+  display: flex;
+  padding: 8px 8px 0;
+}
+
+@media (min-width: 900px) {
+  .kl__stage {
+    padding: 14px 16px 0;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   Table
+   ========================================================================== */
+
+.kltable {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kl-rowgap, 10px);
+  border-radius: 18px;
+  /* card z-indexes stay inside the felt, under the floating hint */
+  isolation: isolate;
+  background: radial-gradient(
+    120% 85% at 50% 30%,
+    var(--felt-hi) 0%,
+    var(--felt-mid) 46%,
+    var(--felt-lo) 90%,
+    var(--felt-edge) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(212, 175, 55, 0.16),
+    inset 0 10px 44px rgba(0, 0, 0, 0.34),
+    0 14px 34px rgba(0, 0, 0, 0.42);
+  /* our own pointer handling: no scroll, no text selection, no callout */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  /* cards fly in from the stock (top-left) on a fresh deal */
+  --deal-x: 0px;
+  --deal-y: 0px;
+}
+
+.kltable__top,
+.kltable__cols {
+  display: grid;
+  grid-template-columns: repeat(7, var(--card-w));
+  justify-content: center;
+  column-gap: var(--kl-gap, 4px);
+}
+
+.kltable__top {
+  position: relative;
+  z-index: 2;
+  height: var(--card-h);
+}
+
+.kltable__cols {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.kltable.is-dragging-top .kltable__top {
+  z-index: 3;
+}
+
+/* ---- piles ------------------------------------------------------------ */
+
+.klpile {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: calc(var(--card-w) * 0.11);
+}
+
+.klpile--stock {
+  grid-column: 1;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1.5px rgba(212, 175, 55, 0.22);
+}
+
+.klpile--stock .pcard {
+  position: absolute;
+  inset: 0;
+}
+
+.klpile__depth {
+  position: absolute;
+  inset: 0;
+  transform: translate(2px, 2px);
+  border-radius: inherit;
+  background: #08291f;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.klpile__count {
+  position: absolute;
+  right: -4px;
+  bottom: -5px;
+  z-index: 2;
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+  color: #22190a;
+  background: var(--gold-soft);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.klpile__recycle {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--card-w) * 0.5);
+  font-weight: 700;
+  color: rgba(212, 175, 55, 0.25);
+}
+
+.klpile__recycle[data-live='true'] {
+  color: var(--gold-soft);
+  opacity: 0.7;
+}
+
+.klpile--waste {
+  grid-column: 2 / span 2;
+  width: auto;
+}
+
+.klpile--found {
+  box-shadow: inset 0 0 0 1.5px rgba(212, 175, 55, 0.2);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.klpile__ghost {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--card-w) * 0.48);
+  color: rgba(255, 255, 255, 0.13);
+}
+
+.klpile__ghost[data-red='true'] {
+  color: rgba(232, 105, 90, 0.2);
+}
+
+.klcol {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+}
+
+.klcol.is-source {
+  z-index: 5;
+}
+
+.klcol__base {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--card-w) * 0.11);
+  border: 1.5px dashed rgba(212, 175, 55, 0.2);
+  font-size: calc(var(--card-w) * 0.34);
+  font-weight: 800;
+  color: rgba(212, 175, 55, 0.18);
+}
+
+/* ---- cards on the felt ------------------------------------------------ */
+
+.klslot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+  transition: transform 160ms var(--ease-out);
+  cursor: grab;
+}
+
+.klslot .pcard {
+  position: absolute;
+  inset: 0;
+  animation-delay: var(--delay, 0ms);
+}
+
+.klslot.is-dragging {
+  transition: none;
+  cursor: grabbing;
+}
+
+.klslot.is-dragging .pcard__face {
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.klslot--land .pcard {
+  animation: kl-land 170ms var(--ease-out) both;
+}
+
+@keyframes kl-land {
+  from {
+    transform: scale(1.06);
+    filter: brightness(1.12);
+  }
+  to {
+    transform: scale(1);
+    filter: none;
+  }
+}
+
+/* hint: gold halo on what moves, ring on where it goes */
+.klslot.is-hint .pcard__face,
+.klpile.is-hint {
+  box-shadow: 0 0 0 2px var(--gold), 0 0 16px var(--gold-glow), var(--shadow-card);
+  animation: kl-pulse 1.3s ease-in-out infinite;
+}
+
+.klslot.is-target .pcard__face,
+.klpile.is-target,
+.klcol__base.is-target {
+  box-shadow: 0 0 0 2px var(--win), 0 0 14px rgba(79, 201, 138, 0.5);
+}
+
+@keyframes kl-pulse {
+  50% {
+    filter: brightness(1.15);
+  }
+}
+
+.klslot.is-shake .pcard {
+  animation: kl-shake 300ms var(--ease-out) both;
+}
+
+@keyframes kl-shake {
+  20% {
+    transform: translateX(-4px);
+  }
+  45% {
+    transform: translateX(4px);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Controls
+   ========================================================================== */
+
+.kl__controls {
+  grid-row: 4;
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 12px calc(10px + env(safe-area-inset-bottom));
+  margin-top: 8px;
+  border-top: 1px solid var(--hair);
+  background: rgba(4, 12, 9, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.kl__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr;
+  gap: 8px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.kl__btn {
+  padding: 0 10px;
+}
+
+.kl__stuck,
+.kl__auto {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--text-2);
+}
+
+.kl__stuck {
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: rgba(226, 163, 63, 0.12);
+  border: 1px solid rgba(226, 163, 63, 0.3);
+  color: #f2d3a1;
+  text-align: left;
+}
+
+/* ---- hint card -------------------------------------------------------- */
+
+/* Hint and dead-deal notices float over the bottom of the felt instead of
+   pushing it: resizing the cards every time a hint opens would be jarring. */
+.kl__float {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.kl__float > * {
+  pointer-events: auto;
+  box-shadow: var(--shadow-panel);
+}
+
+.klhint {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 11px 12px;
+  border-radius: 13px;
+  border: 1px solid var(--gold-line);
+  background: rgba(10, 28, 20, 0.97);
+  animation: kl-hint-in 200ms var(--ease-out) both;
+}
+
+.klhint[data-stuck='true'] {
+  border-color: rgba(226, 163, 63, 0.4);
+}
+
+@keyframes kl-hint-in {
+  from {
+    transform: translateY(14px) scale(0.97);
+    opacity: 0;
+  }
+}
+
+.klhint__top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.klhint__action {
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--gold-soft);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.klhint__situation {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.klhint__close {
+  margin-left: auto;
+  flex: 0 0 auto;
+  min-width: 34px;
+  min-height: 34px;
+}
+
+.klhint__why {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.klhint__play {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.klhint__play + .klhint__close {
+  margin-left: 0;
+}
+
+/* short screens: the hint gives the felt back as much room as it can */
+@media (max-height: 720px) {
+  .klhint {
+    padding: 8px 10px;
+    gap: 5px;
+  }
+
+  .klhint__why {
+    font-size: 12px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ---- win -------------------------------------------------------------- */
+
+.klwin {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+  animation: kl-hint-in 260ms var(--ease-out) both;
+}
+
+.klwin__line {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.klwin__line b {
+  color: var(--gold-soft);
+  font-size: 17px;
+  margin-right: 4px;
+}
+
+.klwin__clean {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--win);
+  border: 1px solid rgba(79, 201, 138, 0.45);
+  vertical-align: 2px;
+}
+
+.klwin__sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.klwin__next {
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ==========================================================================
+   Settings
+   ========================================================================== */
+
+.klset {
+  display: flex;
+  flex-direction: column;
+}
+
+.klset__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hair-2);
+}
+
+.klset__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.klset__label span {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.klset__label small {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-3);
+}
+
+.klset__control {
+  flex: 0 0 auto;
+}
+
+.klset__notice {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  background: rgba(226, 163, 63, 0.12);
+  border: 1px solid rgba(226, 163, 63, 0.3);
+  color: #f2d3a1;
+}
+
+.klseg {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.klseg__btn {
+  min-width: 44px;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--text-3);
+}
+
+.klseg__btn.is-active {
+  background: rgba(212, 175, 55, 0.18);
+  color: var(--gold-soft);
+  box-shadow: inset 0 0 0 1px var(--gold-line);
+}
+
+.klset__keys {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 2px;
+}
+
+.klset__keys dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+  margin: 0;
+}
+
+.klset__keys dl div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.klset__keys dt .kbd {
+  margin-left: 0;
+}
+
+.klset__keys dd {
+  margin: 0;
+}
+
+.klset__how {
+  margin: 10px 0 2px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.klset__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .klset__keys {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .klslot {
+    transition: none;
+  }
+
+  .klslot.is-hint .pcard__face,
+  .klpile.is-hint {
+    animation: none;
+  }
+}
+
+/* Short landscape phones: every pixel of height goes to the felt. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .klstats {
+    display: none;
+  }
+
+  .kl__bar {
+    padding: 2px 12px;
+  }
+
+  .kl__stage {
+    padding-top: 4px;
+  }
+
+  .kltable {
+    padding: 6px;
+  }
+
+  .kl__controls {
+    margin-top: 4px;
+    padding-top: 5px;
+    padding-bottom: calc(5px + env(safe-area-inset-bottom));
+  }
+
+  .kl__btn {
+    min-height: 34px;
+  }
+
+  .klhint__why {
+    font-size: 12px;
+  }
+}

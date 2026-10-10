@@ -10,8 +10,9 @@
     "typecheck": "tsc -b --noEmit",
     "verify:blackjack": "esbuild scripts/verify.ts --bundle --platform=node --format=esm --outfile=/tmp/feltmath-verify-blackjack.mjs && node /tmp/feltmath-verify-blackjack.mjs",
     "verify:holdem": "esbuild scripts/verify-holdem.ts --bundle --platform=node --format=esm --outfile=/tmp/feltmath-verify-holdem.mjs && node /tmp/feltmath-verify-holdem.mjs",
+    "verify:klondike": "esbuild scripts/verify-klondike.ts --bundle --platform=node --format=esm --outfile=/tmp/feltmath-verify-klondike.mjs && node /tmp/feltmath-verify-klondike.mjs",
     "verify:deployment": "esbuild scripts/verify-deployment.ts --bundle --platform=node --format=esm --outfile=/tmp/feltmath-verify-deployment.mjs && node /tmp/feltmath-verify-deployment.mjs",
-    "test": "npm run verify:blackjack && npm run verify:holdem && npm run verify:deployment"
+    "test": "npm run verify:blackjack && npm run verify:holdem && npm run verify:klondike && npm run verify:deployment"
   },
   "dependencies": {
     "react": "^19.1.0",

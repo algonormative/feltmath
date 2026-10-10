@@ -243,6 +243,8 @@ button:disabled {
   height: 100dvh;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  /* never let a wide child (the game switcher) widen the page */
+  grid-template-columns: minmax(0, 1fr);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   overflow: hidden;
@@ -322,6 +324,23 @@ button:disabled {
 .appbar__github svg {
   width: 16px;
   height: 16px;
+}
+
+/* three games + the wordmark don't fit a phone; the wordmark yields */
+@media (max-width: 440px) {
+  .appbar {
+    gap: 6px;
+  }
+
+  .appbar__tag {
+    visibility: hidden;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .appbar__game {
+    padding: 3px 7px;
+  }
 }
 
 /* ==========================================================================
