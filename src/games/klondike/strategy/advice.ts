@@ -1,7 +1,9 @@
 // Klondike coaching: rank the legal moves by classic solitaire strategy and
-// explain the pick in plain English. The hint never peeks at face-down stock
-// cards when choosing a move; only the "dead deal" verdict looks through the
-// stock, because a trainer saying "you're done" must be right.
+// explain the pick in plain English. Ordinary hints never peek at face-down
+// stock cards. Only when the board offers nothing obvious does the look-ahead
+// in search.ts (which sees the whole deck) step in — either to find the line
+// that keeps the deal alive, or to prove it is dead, because a trainer saying
+// "you're done" must be right.
 
 import type { Card } from '../../../shared/cards'
 import { SUIT_SYMBOL, isRedSuit } from '../../../shared/cards'
@@ -20,6 +22,7 @@ import {
   stacksOn,
 } from '../engine/game'
 import type { KlondikeAdvice, KlondikeState, Loc, Move } from '../types'
+import { boardKey, findProgress } from './search'
 
 export function cardName(card: Card): string {
   return `${card.rank}${SUIT_SYMBOL[card.suit]}`
@@ -196,7 +199,7 @@ function scoreMove(state: KlondikeState, move: Move): ScoredMove | null {
   }
 
   // ---- tableau to tableau -------------------------------------------------
-  const what = count > 1 ? `${name} and the ${count - 1} on it` : name
+  const what = runLabel(name, count)
   if (reveals) {
     const most = hidden === mostHidden(state)
     return {
@@ -263,6 +266,10 @@ function scoreMove(state: KlondikeState, move: Move): ScoredMove | null {
   return null
 }
 
+function runLabel(name: string, count: number): string {
+  return count > 1 ? `${name} and ${count - 1} more card${count > 2 ? 's' : ''}` : name
+}
+
 function rankLabel(value: number): string {
   return value === 1 ? 'A' : value === 11 ? 'J' : value === 12 ? 'Q' : value === 13 ? 'K' : String(value)
 }
@@ -270,9 +277,15 @@ function rankLabel(value: number): string {
 /** Every legal, non-pointless move with its score, best first. */
 export function rankedMoves(state: KlondikeState): ScoredMove[] {
   const scored: ScoredMove[] = []
+  // Never advise straight back to the position before the last move — that is
+  // how a take-down followed by a play-up (or a run shuffled back) loops.
+  const prev = state.history[state.history.length - 1]
+  const prevKey = prev ? boardKey(prev) : null
   for (const move of legalMoves(state)) {
     const s = scoreMove(state, move)
-    if (s) scored.push(s)
+    if (!s) continue
+    if (prevKey && move.kind === 'move' && boardKey(applyMove(state, move)) === prevKey) continue
+    scored.push(s)
   }
   // Stable: ties keep enumeration order (waste first, then columns left → right).
   return scored.sort((a, b) => b.score - a.score)
@@ -299,6 +312,20 @@ function stockCanHelp(state: KlondikeState): boolean {
   return false
 }
 
+/** Label + one-line description for any legal move (used for look-ahead lines). */
+function describeMove(state: KlondikeState, move: Move): { label: string; situation: string } {
+  if (move.kind === 'draw') return { label: 'DRAW', situation: `Turn ${state.draw === 3 ? 'three' : 'a card'} from the stock` }
+  if (move.kind === 'recycle') return { label: 'RESET', situation: 'Flip the waste back into the stock' }
+  const src = cardsAt(state, move.from)
+  const card = src[src.length - move.count]
+  const name = cardName(card)
+  if (isFoundation(move.to)) return { label: 'PLAY UP', situation: `${name} to the foundation` }
+  if (isFoundation(move.from)) return { label: 'TAKE DOWN', situation: `${name} back to ${locName(move.to)}` }
+  const dest = cardsAt(state, move.to)
+  const onto = dest.length === 0 ? 'the empty column' : `the ${cardName(dest[dest.length - 1])}`
+  return { label: 'MOVE', situation: `${runLabel(name, move.count)} onto ${onto}` }
+}
+
 export function klondikeAdvice(state: KlondikeState): KlondikeAdvice {
   if (state.status !== 'playing') {
     return { move: null, label: 'SOLVED', situation: 'Every card is home', explanation: 'Nice work.', stuck: false }
@@ -310,18 +337,48 @@ export function klondikeAdvice(state: KlondikeState): KlondikeAdvice {
     return { ...best, stuck: false }
   }
 
-  // Only stock moves (or busywork) remain: is the deal still alive?
+  // Only stock moves (or busywork) remain: will the stock show something playable?
   if (best && stockCanHelp(state)) {
     return { ...best, stuck: false }
   }
 
+  // Nothing obvious. Look further ahead before calling it.
+  const line = findProgress(state)
+  if (line.kind === 'found') {
+    const move = line.path[0]
+    const steps = line.path.length
+    const goal = line.reveals ? 'turns over a face-down card' : 'gets another card home'
+    return {
+      move,
+      ...describeMove(state, move),
+      explanation:
+        steps === 1
+          ? `It doesn't look like much, but it ${goal}.`
+          : `Nothing pays off right away, but looking ahead this starts a ${steps}-move line that ${goal}. Ask again after each move to follow it.`,
+      stuck: false,
+    }
+  }
+
+  if (line.kind === 'dead') {
+    return {
+      move: null,
+      label: 'STUCK',
+      situation: 'No moves left',
+      explanation:
+        'Every line from here — board moves, take-downs, and every pass through the stock — has been checked, and none turns over another card or gets one home. Undo to try a different line, or deal a new game: not every Klondike deal can be won.',
+      stuck: true,
+      certain: true,
+    }
+  }
+
   return {
     move: null,
-    label: 'STUCK',
-    situation: 'No productive moves left',
+    label: 'STUCK?',
+    situation: 'No obvious moves',
     explanation:
-      "Nothing on the board or anywhere in the stock can be played anywhere useful. Undo back to try a different line, or deal a new game — not every Klondike deal can be won.",
+      "Thousands of lines from here were checked without finding a way to turn over another card. There may be a long one, but it's probably time to undo or deal again.",
     stuck: true,
+    certain: false,
   }
 }
 

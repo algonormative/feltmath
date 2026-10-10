@@ -22,8 +22,8 @@ games can land later.
   100bb 6-max Hold'em baselines, both with plain-English reasoning
 - **AI table mates** — up to 6 companion players who play perfect book
 - **Klondike solitaire** — draw 1 or draw 3, tap-to-move or drag, undo,
-  auto-finish, and hints that explain the move (and say when a deal is
-  dead)
+  auto-finish, and hints that explain the move — with a look-ahead that finds
+  the hidden way forward, or proves a deal is dead
 - **Trainer stats** — win rate, net, and how often you matched the book
 - **PWA** — installable on iOS/Android; every lazy-loaded game is precached
   for offline use

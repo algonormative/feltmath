@@ -65,18 +65,32 @@ empty a column only when a king is ready to fill it; split a run only when the
 card underneath can then go up or receive the waste card. Pointless shuffles
 are never suggested.
 
-The hint never peeks at face-down stock cards when choosing a move. Only the
-"no moves left" verdict looks through the stock (simulating a full cycle),
-because a trainer that says a deal is dead must be right.
+Ordinary hints never peek at face-down stock cards. When nothing on the
+board is obviously productive and the stock can't help either,
+`strategy/search.ts` takes over: a breadth-first look-ahead over every legal
+move (take-downs and stock passes included, on a compact integer board) for
+the shortest line that turns over a face-down card or gets a card home past
+the deal's recent best. Its first move becomes the hint ("starts a 7-move
+line…"). It never routes back through the position just left, so hints can't
+ping-pong. If the reachable positions run out, the deal is provably dead
+("No moves left"); if the 20k-position budget runs out first, the verdict is
+the softer "No obvious moves".
+
+```ts
+export function findProgress(state: KlondikeState, budget?: number): LineResult // found | dead | unknown
+```
 
 `scripts/verify-klondike.ts` covers deal shape, rule legality, draw-3 packet
-order and recycling, undo, auto-finish, stats, and a 600-deal hint-driven fuzz
-asserting card conservation, legal hints, no loops, and a minimum win rate.
+order and recycling, undo, auto-finish, stats, boards a playtester found
+wrongly called dead (`scripts/fixtures/`), a cross-check of the look-ahead's
+move generator against the engine, and a 600-deal hint-driven fuzz asserting
+card conservation, legal hints, no loops, and a minimum win rate.
 
 ## src/games/klondike/ui/
 
 `KlondikeGame` owns `useReducer` over the engine, the wall clock (paused while
 the tab is hidden), persistence (the whole deal in progress survives a reload
 or a game switch) and hotkeys. `KlondikeTable` measures the felt and sizes
-cards to fit seven columns; a tap sends a card to its best spot, a drag drops
+cards to fit seven columns — and shrinks them when a column grows too long to
+fan legibly above the controls; a tap sends a card to its best spot, a drag drops
 it exactly. Plain CSS in `klondike.css`, own class names (`kl*`).

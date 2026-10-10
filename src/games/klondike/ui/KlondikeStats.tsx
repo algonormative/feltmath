@@ -21,7 +21,7 @@ export function KlondikeStats({ stats, open, onToggle }: KlondikeStatsProps) {
   return (
     <div className={`klstats${open ? ' is-open' : ''}`}>
       <button type="button" className="klstats__toggle" onClick={onToggle} aria-expanded={open}>
-        <span className="smallcaps">Session</span>
+        <span className="smallcaps">All time</span>
         <span className="klstats__peek num">
           {stats.won}/{stats.played} won
         </span>

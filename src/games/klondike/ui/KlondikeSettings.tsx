@@ -111,8 +111,8 @@ export function KlondikeSettings({ config, currentDraw, onApply, onResetStats, o
               </div>
             ))}
           </dl>
-          <p>Tap a card to send it to its best spot, or drag it exactly where you want it.</p>
         </div>
+        <p className="klset__how">Tap a card to send it to its best spot, or drag it exactly where you want it.</p>
       </div>
     </Modal>
   )

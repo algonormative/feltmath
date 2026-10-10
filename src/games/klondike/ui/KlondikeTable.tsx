@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Card } from '../../../shared/cards'
 import { SUITS, SUIT_SYMBOL, isRedSuit } from '../../../shared/cards'
 import { CardView } from '../../../shared/ui/CardView'
@@ -31,45 +31,61 @@ interface Geometry {
   tableauH: number
 }
 
+interface Felt {
+  width: number
+  height: number
+}
+
 const RATIO = 1.4375
 const DRAG_THRESHOLD = 7
+/** Tightest fan that still shows a face-up card's rank and suit, in card heights. */
+const UP_MIN = 0.19
+const HIDDEN_MIN = 0.05
 
-function useGeometry(ref: React.RefObject<HTMLDivElement | null>): Geometry | null {
-  const [geo, setGeo] = useState<Geometry | null>(null)
+/** The felt's content box, kept current with a ResizeObserver. */
+function useFelt(ref: React.RefObject<HTMLDivElement | null>): Felt | null {
+  const [felt, setFelt] = useState<Felt | null>(null)
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
     const measure = () => {
-      // Content box: the felt's own padding is not card space.
       const cs = getComputedStyle(el)
-      const width = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
-      const height = el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+      const width = Math.floor(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))
+      const height = Math.floor(el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom))
       if (width <= 0 || height <= 0) return
-      const minGap = width < 440 ? 4 : 8
-      const rowGap = width < 440 ? 10 : 16
-      // Seven across, and tall enough that a deep column still fans legibly.
-      const byWidth = (width - minGap * 6) / 7
-      const byHeight = height / (RATIO * 3.2)
-      const cardW = Math.floor(Math.max(30, Math.min(byWidth, byHeight, 104)))
-      const cardH = Math.round(cardW * RATIO)
-      // When height is the limit, spread the columns a little — not edge to edge.
-      const gap = Math.round(Math.min(Math.max(minGap, (width - cardW * 7) / 6), cardW * 0.3))
-      setGeo((prev) => {
-        const next = { cardW, cardH, gap, rowGap, tableauH: Math.max(cardH, height - cardH - rowGap) }
-        return prev &&
-          prev.cardW === next.cardW &&
-          prev.tableauH === next.tableauH &&
-          prev.gap === next.gap
-          ? prev
-          : next
-      })
+      setFelt((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }))
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
   }, [ref])
-  return geo
+  return felt
+}
+
+/**
+ * Card size for this felt and this deal. Seven across, a comfortable default
+ * height, and — when a column grows long — small enough that the whole
+ * column still fits above the controls at a legible fan.
+ */
+function fitGeometry({ width, height }: Felt, tableau: KlondikeState['tableau']): Geometry {
+  const minGap = width < 440 ? 4 : 8
+  const rowGap = width < 440 ? 10 : 16
+  const byWidth = (width - minGap * 6) / 7
+  const byHeight = height / (RATIO * 3.2)
+  // top row (one card) + row gap + the tallest column at its tightest fan
+  let worst = 0
+  for (const col of tableau) {
+    const up = col.cards.length - col.hidden
+    if (col.cards.length === 0) continue
+    worst = Math.max(worst, 1 + col.hidden * HIDDEN_MIN + Math.max(0, up - 1) * UP_MIN)
+  }
+  const byColumns = (height - rowGap) / (1 + worst) / RATIO
+  const cardW = Math.floor(Math.max(30, Math.min(byWidth, byHeight, byColumns, 104)))
+  const cardH = Math.round(cardW * RATIO)
+  // When height is the limit, spread the columns a little — not edge to edge.
+  const gap = Math.round(Math.min(Math.max(minGap, (width - cardW * 7) / 6), cardW * 0.3))
+  return { cardW, cardH, gap, rowGap, tableauH: Math.max(cardH, height - cardH - rowGap) }
 }
 
 /** Vertical offsets for a column's cards, squeezed to fit the felt. */
@@ -79,12 +95,15 @@ function columnOffsets(cards: number, hidden: number, geo: Geometry): number[] {
   let dh = cardH * 0.13
   let uh = cardH * 0.29
   const up = cards - hidden
-  const need = () => hidden * dh + Math.max(0, up - 1) * uh + cardH
-  if (need() > tableauH && up > 1) {
-    uh = Math.max(cardH * 0.16, (tableauH - cardH - hidden * dh) / (up - 1))
-  }
-  if (need() > tableauH && hidden > 0) {
-    dh = Math.max(cardH * 0.05, (tableauH - cardH - Math.max(0, up - 1) * uh) / hidden)
+  const room = tableauH - cardH
+  const need = () => hidden * dh + Math.max(0, up - 1) * uh
+  if (need() > room && up > 1) uh = Math.max(cardH * UP_MIN, (room - hidden * dh) / (up - 1))
+  if (need() > room && hidden > 0) dh = Math.max(cardH * HIDDEN_MIN, (room - Math.max(0, up - 1) * uh) / hidden)
+  // Cards are already at their minimum size: squeeze whatever it takes.
+  if (need() > room && need() > 0) {
+    const k = Math.max(0, room) / need()
+    dh *= k
+    uh *= k
   }
   const out: number[] = []
   let y = 0
@@ -114,7 +133,8 @@ interface DragState {
 
 export function KlondikeTable({ state, highlight, shake, dealing, onTap, onDrop }: KlondikeTableProps) {
   const rootRef = useRef<HTMLDivElement>(null)
-  const geo = useGeometry(rootRef)
+  const felt = useFelt(rootRef)
+  const geo = useMemo(() => (felt ? fitGeometry(felt, state.tableau) : null), [felt, state.tableau])
   const press = useRef<PressState | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
 

@@ -90,6 +90,8 @@ export interface KlondikeAdvice {
   situation: string
   /** plain-English why */
   explanation: string
-  /** the board has no productive move left, even cycling the stock */
+  /** no way forward was found */
   stuck: boolean
+  /** stuck, and the look-ahead proved it (otherwise: "no obvious moves") */
+  certain?: boolean
 }

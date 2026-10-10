@@ -84,7 +84,7 @@ function isBoard(value: unknown): value is Board {
 function coerceGame(raw: unknown, config: KlondikeConfig, stats: KlondikeStats): KlondikeState | null {
   if (!isBoard(raw)) return null
   const g = raw as unknown as Record<string, unknown>
-  if (g.status !== 'playing') return null
+  if (g.status !== 'playing' && g.status !== 'won') return null
   const history = Array.isArray(g.history) ? (g.history as unknown[]).filter(isBoard) : []
   return {
     stock: g.stock as Card[],
@@ -98,7 +98,7 @@ function coerceGame(raw: unknown, config: KlondikeConfig, stats: KlondikeStats):
     draw: g.draw === 3 ? 3 : 1,
     dealNumber: num(g.dealNumber, 1),
     rngSeed: num(g.rngSeed, 1) >>> 0,
-    status: 'playing',
+    status: g.status === 'won' ? 'won' : 'playing',
     hintsUsed: num(g.hintsUsed, 0),
     undos: num(g.undos, 0),
     counted: g.counted === true,
@@ -127,10 +127,13 @@ export function loadKlondike(): PersistedKlondike | null {
 
 export function saveKlondike(state: KlondikeState, elapsedMs: number): void {
   try {
-    const game =
-      state.status === 'playing'
-        ? { ...state, stats: undefined, config: undefined, history: state.history.slice(-SAVED_HISTORY) }
-        : null
+    // A won deal is kept too, so a reload lands back on the win screen.
+    const game = {
+      ...state,
+      stats: undefined,
+      config: undefined,
+      history: state.status === 'won' ? [] : state.history.slice(-SAVED_HISTORY),
+    }
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ config: state.config, stats: state.stats, game, elapsedMs }),

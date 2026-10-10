@@ -323,13 +323,22 @@ export function KlondikeGame() {
           {hintShown && !won && (
             <KlondikeHint advice={advice} onPlay={playHint} onDismiss={() => setHintFor(null)} />
           )}
-          {stuck && !hintShown && (
-            <p className="kl__stuck" role="status">
-              <b>No moves left.</b> Nothing on the board or in the stock can go anywhere useful — undo to try
-              another line, or deal again.
-            </p>
-          )}
         </div>
+
+        {stuck && !hintShown && (
+          <p className="kl__stuck" role="status">
+            {advice.certain ? (
+              <>
+                <b>No moves left.</b> Every line from here has been checked — undo to try another, or deal again.
+              </>
+            ) : (
+              <>
+                <b>No obvious moves.</b> Nothing turns over another card within thousands of lines — probably time
+                to undo or deal again.
+              </>
+            )}
+          </p>
+        )}
 
         {won ? (
           <div className="klwin" role="status">
