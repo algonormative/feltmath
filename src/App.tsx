@@ -7,6 +7,9 @@ const BlackjackGame = lazy(() =>
 const HoldemGame = lazy(() =>
   import('./games/holdem/ui/HoldemGame').then((m) => ({ default: m.HoldemGame })),
 )
+const KlondikeGame = lazy(() =>
+  import('./games/klondike/ui/KlondikeGame').then((m) => ({ default: m.KlondikeGame })),
+)
 
 interface GameEntry {
   id: string
@@ -16,6 +19,7 @@ interface GameEntry {
 const GAMES: GameEntry[] = [
   { id: 'blackjack', label: 'Blackjack' },
   { id: 'holdem', label: "Hold'em" },
+  { id: 'klondike', label: 'Solitaire' },
 ]
 
 const GAME_KEY = 'feltmath-game'
@@ -80,7 +84,13 @@ export default function App() {
       </header>
 
       <Suspense fallback={<div className="app__loading">Shuffling up…</div>}>
-        {activeId === 'holdem' ? <HoldemGame /> : <BlackjackGame />}
+        {activeId === 'holdem' ? (
+          <HoldemGame />
+        ) : activeId === 'klondike' ? (
+          <KlondikeGame />
+        ) : (
+          <BlackjackGame />
+        )}
       </Suspense>
     </div>
   )

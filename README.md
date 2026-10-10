@@ -4,7 +4,7 @@
 
 [feltmath.com](https://feltmath.com/) is an installable card-game trainer with
 live odds, strategy guidance, and decision-by-decision feedback. It currently
-supports Blackjack and No-Limit Texas Hold'em; the architecture is multi-game
+supports Blackjack, No-Limit Texas Hold'em, and Klondike solitaire; the architecture is multi-game
 (`src/games/<game>/` over shared card/chip primitives in `src/shared/`) so more
 games can land later.
 
@@ -21,8 +21,11 @@ games can land later.
 - **Hint + book** — deck- and rule-aware blackjack basic strategy plus solid
   100bb 6-max Hold'em baselines, both with plain-English reasoning
 - **AI table mates** — up to 6 companion players who play perfect book
+- **Klondike solitaire** — draw 1 or draw 3, tap-to-move or drag, undo,
+  auto-finish, and hints that explain the move (and say when a deal is
+  dead)
 - **Trainer stats** — win rate, net, and how often you matched the book
-- **PWA** — installable on iOS/Android; both lazy-loaded games are precached
+- **PWA** — installable on iOS/Android; every lazy-loaded game is precached
   for offline use
 
 Blackjack uses a strict same-rank split house rule: `K,K` may split, while
@@ -33,7 +36,7 @@ Blackjack uses a strict same-rank split house rule: `K,K` may split, while
 ```bash
 npm install
 npm run dev        # http://localhost:5199
-npm test           # blackjack + Hold'em rule/evaluator regression suites
+npm test           # blackjack, Hold'em + Klondike rule/strategy regression suites
 npm run typecheck
 npm run build      # type-check + production build to dist/
 ```
@@ -60,7 +63,11 @@ src/
     strategy/       # preflop ranges + heuristic coaching
     odds/           # exact/Monte Carlo equity + pot odds
     ui/             # React components
+  games/klondike/
+    engine/         # pure solitaire state machine, undo, auto-finish
+    strategy/       # ranked move hints with plain-English reasons
+    ui/             # React components
 ```
 
-`CONTRACT.md` and `CONTRACT-HOLDEM.md` document the module APIs and engine state
+`CONTRACT.md`, `CONTRACT-HOLDEM.md` and `CONTRACT-KLONDIKE.md` document the module APIs and engine state
 machines.

@@ -2,9 +2,9 @@
 
 Multi-game trainer. `src/shared/` is game-agnostic (cards, rng, reusable UI);
 each game lives under `src/games/<game>/`. Blackjack and Texas Hold'em are
-implemented. Keep shared primitives generic and game-specific behavior inside
-the corresponding module directory. Hold'em's contract is in
-`CONTRACT-HOLDEM.md`.
+implemented, plus Klondike solitaire. Keep shared primitives generic and
+game-specific behavior inside the corresponding module directory. Hold'em's
+contract is in `CONTRACT-HOLDEM.md`, Klondike's in `CONTRACT-KLONDIKE.md`.
 
 All types referenced below are defined in `src/games/blackjack/types.ts` and
 `src/shared/cards.ts`. Do not redefine them.
@@ -176,5 +176,5 @@ panel, hint card, book modal, settings, betting controls, stats bar.
 
 ## App shell
 
-`src/App.tsx` — lazy-loaded Blackjack/Hold'em game switcher.
+`src/App.tsx` — lazy-loaded Blackjack/Hold'em/Solitaire game switcher.
 `src/main.tsx` mounts App and registers `sw.js`.
